@@ -41,7 +41,7 @@ export default function Home() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 text-6xl">📦</div>
-            <CardTitle className="text-3xl">Sistema de Catálogo de Embalagens</CardTitle>
+            <CardTitle className="text-3xl">Catálogo de Embalagens</CardTitle>
             <CardDescription>
               Faça login para acessar o sistema de catalogação e mapeamento logístico de embalagens
             </CardDescription>

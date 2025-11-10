@@ -304,13 +304,45 @@ export const appRouter = router({
       ),
   }),
 
-  // Routers de usuários
   usuarios: router({
-    list: adminProcedure.query(() => db.getAllUsers()),
+    list: adminProcedure.query(async () => {
+      return db.getAllUsers();
+    }),
 
     getById: adminProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => db.getUserById(input.id)),
+      .query(async ({ input }) => {
+        return db.getUserById(input.id);
+      }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          name: z.string().min(1, "Nome é obrigatório"),
+          email: z.string().email("E-mail inválido"),
+          role: z.enum(["super_admin", "admin", "gerente", "visualizador"]),
+        })
+      )
+      .mutation(async ({ input }) => {
+        await db.upsertUser({
+          openId: input.email, // simples e único para esse contexto
+          name: input.name,
+          email: input.email,
+          role: input.role,
+          loginMethod: "manual",
+          lastSignedIn: new Date(),
+        });
+
+        const created = await db.getUserByOpenId(input.email);
+        if (!created) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Falha ao criar usuário",
+          });
+        }
+
+        return created;
+      }),
 
     update: adminProcedure
       .input(
@@ -323,16 +355,17 @@ export const appRouter = router({
             .optional(),
         })
       )
-      .mutation(async ({ input }) =>
-        db.updateUser(input.id, input)
-      ),
+      .mutation(async ({ input }) => {
+        return db.updateUser(input.id, input);
+      }),
 
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) =>
-        db.deleteUser(input.id)
-      ),
+      .mutation(async ({ input }) => {
+        return db.deleteUser(input.id);
+      }),
   }),
+
 
   // Routers de equipes
   equipes: router({

@@ -12,6 +12,7 @@ import Localizacoes from "./pages/Localizacoes";
 import LocalizacaoDetalhes from "./pages/LocalizacaoDetalhes";
 import NovaLocalizacao from "./pages/NovaLocalizacao";
 import Usuarios from "./pages/Usuarios";
+import NovoUsuario from "@/pages/NovoUsuario";
 import CaixaQRCode from "./pages/CaixaQRCode";
 
 function Router() {
@@ -25,6 +26,7 @@ function Router() {
       <Route path={"/localizacoes/nova"} component={NovaLocalizacao} />
       <Route path={"/localizacoes/:id"} component={LocalizacaoDetalhes} />
       <Route path={"/usuarios"} component={Usuarios} />
+      <Route path={"/usuarios/novo"} component={NovoUsuario} />
       <Route path={"/caixa/:sigla"} component={CaixaQRCode} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
