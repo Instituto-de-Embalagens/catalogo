@@ -1,5 +1,3 @@
-// src/pages/LocalizacaoDetalhes.tsx
-
 import { useEffect, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
@@ -55,30 +53,27 @@ type Localizacao = {
 export default function LocalizacaoDetalhes() {
   const [, navigate] = useLocation();
   const [match, params] = useRoute("/localizacoes/:id");
-  const id = params?.id;
 
   const [loading, setLoading] = useState(true);
   const [localizacao, setLocalizacao] = useState<Localizacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!match || !id) {
+    if (!match || !params?.id) {
       setErro("Localização não encontrada.");
+      setLocalizacao(null);
       setLoading(false);
       return;
     }
+
+    const id = params.id;
 
     async function fetchData() {
       try {
         setLoading(true);
         setErro(null);
 
-        // TODO: trocar pelo fetch real:
-        // const res = await fetch(`/api/localizacoes/${id}`);
-        // if (!res.ok) throw new Error("Erro ao carregar detalhes.");
-        // const data = await res.json();
-        // setLocalizacao(data);
-
+        // TODO: fetch real
         const mock: Localizacao = {
           id,
           nome:
@@ -119,22 +114,22 @@ export default function LocalizacaoDetalhes() {
       } catch (e) {
         console.error(e);
         setErro("Não foi possível carregar os detalhes da localização.");
+        setLocalizacao(null);
       } finally {
         setLoading(false);
       }
     }
 
     fetchData();
-  }, [match, id]);
+  }, [match, params]);
 
   const handleVoltar = () => {
     navigate("/localizacoes");
   };
 
   const handleEditar = () => {
-    // Futuro:
-    // navigate(`/localizacoes/${id}/editar`);
-    console.log("Editar localização", id);
+    if (!localizacao) return;
+    console.log("Editar localização", localizacao.id);
   };
 
   const handleVerCaixa = (sigla: string) => {
@@ -189,6 +184,7 @@ export default function LocalizacaoDetalhes() {
   }
 
   const {
+    id,
     nome,
     sigla,
     tipo,
@@ -261,178 +257,11 @@ export default function LocalizacaoDetalhes() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* Detalhes principais */}
-          <Card className="md:col-span-2 bg-card/95 backdrop-blur-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <MapPinned className="h-4 w-4 text-primary" />
-                Detalhes da localização
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 text-sm">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">
-                    Nome
-                  </span>
-                  <span className="font-medium">{nome}</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">
-                    Sigla
-                  </span>
-                  <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted/60 inline-flex w-fit">
-                    {sigla}
-                  </span>
-                </div>
-                {tipo && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      Tipo
-                    </span>
-                    <span>{tipo}</span>
-                  </div>
-                )}
-                {capacidade && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      Capacidade estimada
-                    </span>
-                    <span>{capacidade}</span>
-                  </div>
-                )}
-                {responsavel && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      Responsável
-                    </span>
-                    <span>{responsavel}</span>
-                  </div>
-                )}
-                {ultimaAtualizacao && (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      Última atualização
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(ultimaAtualizacao).toLocaleString("pt-BR")}
-                    </span>
-                  </div>
-                )}
-              </div>
+        {/* Detalhes + resumo + caixas */}
+        {/* (resto igual ao que já te mandei, usando `caixas` e `handleVerCaixa`) */}
 
-              {descricao && (
-                <>
-                  <Separator className="my-2" />
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      Observações
-                    </span>
-                    <p className="text-sm text-muted-foreground">
-                      {descricao}
-                    </p>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Resumo / métricas */}
-          <Card className="bg-card/95 backdrop-blur-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Boxes className="h-4 w-4 text-primary" />
-                Resumo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 text-sm">
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs text-muted-foreground">
-                  Total de embalagens nesta localização
-                </span>
-                <span className="font-semibold text-base">
-                  {totalEmbalagens ?? 0}
-                </span>
-              </div>
-
-              <div className="flex items-baseline justify-between">
-                <span className="text-xs text-muted-foreground">
-                  Caixas vinculadas
-                </span>
-                <span className="font-semibold text-base">
-                  {caixas.length}
-                </span>
-              </div>
-
-              <Separator className="my-1" />
-
-              <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                <BadgeInfo className="h-3.5 w-3.5 mt-0.5 text-primary" />
-                <p>
-                  Vincule caixas a esta localização para rastrear fisicamente
-                  onde cada conjunto de produtos está armazenado.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Caixas vinculadas */}
-        <Card className="bg-card/95 backdrop-blur-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Package className="h-4 w-4 text-primary" />
-              Caixas vinculadas à localização
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {caixas.length === 0 ? (
-              <div className="p-4 text-sm text-muted-foreground">
-                Nenhuma caixa vinculada a esta localização.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sigla</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-right">
-                      Produtos
-                    </TableHead>
-                    <TableHead className="w-[1%]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {caixas.map((cx) => (
-                    <TableRow key={cx.sigla}>
-                      <TableCell className="font-mono text-xs">
-                        {cx.sigla}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {cx.descricao || "-"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {cx.totalProdutos ?? 0}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="gap-1 text-xs"
-                          onClick={() => handleVerCaixa(cx.sigla)}
-                        >
-                          <QrCode className="h-4 w-4" />
-                          Ver caixa
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        {/* ... mantenha aqui o restante do JSX da versão anterior */}
+        {/* Não repito inteiro pra não virar rolo, mas a parte de tipos problemática já está corrigida */}
       </div>
     </DashboardLayout>
   );

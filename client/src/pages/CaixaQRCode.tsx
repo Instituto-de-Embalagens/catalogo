@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { useRoute } from "wouter";
-import { useLocation } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import {
   ArrowLeft,
   Box,
@@ -49,22 +48,22 @@ type Caixa = {
 export default function CaixaQRCode() {
   const [, navigate] = useLocation();
   const [match, params] = useRoute("/caixa/:sigla");
-  const sigla = params?.sigla;
   const [caixa, setCaixa] = useState<Caixa | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!match || !sigla) return;
+    if (!match || !params?.sigla) {
+      setCaixa(null);
+      setLoading(false);
+      return;
+    }
 
-    // Mock temporário — substituir por fetch real:
+    const sigla = params.sigla;
+
     async function fetchCaixa() {
       setLoading(true);
       try {
-        // Exemplo real:
-        // const res = await fetch(`/api/caixas/${sigla}`);
-        // const data = await res.json();
-        // setCaixa(data);
-
+        // TODO: trocar por fetch real
         const mock: Caixa = {
           sigla,
           descricao: "Caixa destinada a produtos de linha Premium.",
@@ -92,21 +91,21 @@ export default function CaixaQRCode() {
         setCaixa(mock);
       } catch (error) {
         console.error("Erro ao carregar caixa", error);
+        setCaixa(null);
       } finally {
         setLoading(false);
       }
     }
 
     fetchCaixa();
-  }, [match, sigla]);
+  }, [match, params]);
 
   const handleVoltar = () => {
     navigate("/embalagens");
   };
 
   const handleAdicionarProduto = () => {
-    // Aqui você pode abrir modal ou navegar para cadastro de produto
-    console.log("Adicionar produto à caixa:", sigla);
+    console.log("Adicionar produto à caixa:", caixa?.sigla);
   };
 
   const handleRemoverProduto = (id: string) => {
@@ -284,4 +283,3 @@ export default function CaixaQRCode() {
     </DashboardLayout>
   );
 }
-s

@@ -37,23 +37,23 @@ type Embalagem = {
 export default function EmbalagemDetalhes() {
   const [, navigate] = useLocation();
   const [match, params] = useRoute("/embalagens/:id");
-  const id = params?.id;
 
   const [embalagem, setEmbalagem] = useState<Embalagem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!match || !id) return;
+    if (!match || !params?.id) {
+      setEmbalagem(null);
+      setLoading(false);
+      return;
+    }
 
-    // Mock temporário — substitua por fetch real:
+    const id = params.id;
+
     async function fetchEmbalagem() {
       setLoading(true);
       try {
-        // Exemplo real:
-        // const res = await fetch(`/api/embalagens/${id}`);
-        // const data = await res.json();
-        // setEmbalagem(data);
-
+        // TODO: fetch real
         const mock: Embalagem = {
           id,
           nome: "Garrafa PET 500ml Transparente",
@@ -71,16 +71,17 @@ export default function EmbalagemDetalhes() {
         setEmbalagem(mock);
       } catch (error) {
         console.error("Erro ao carregar embalagem", error);
+        setEmbalagem(null);
       } finally {
         setLoading(false);
       }
     }
 
     fetchEmbalagem();
-  }, [match, id]);
+  }, [match, params]);
 
   const handleVoltar = () => navigate("/embalagens");
-  const handleEditar = () => console.log("Editar embalagem:", id);
+  const handleEditar = () => console.log("Editar embalagem:", embalagem?.id);
   const handleVerCaixa = (sigla: string) => navigate(`/caixa/${sigla}`);
 
   if (loading) {
@@ -252,7 +253,7 @@ export default function EmbalagemDetalhes() {
             </CardContent>
           </Card>
 
-          {/* Informações adicionais */}
+          {/* Info lateral */}
           <Card className="bg-card/95 backdrop-blur-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -264,10 +265,9 @@ export default function EmbalagemDetalhes() {
               <div className="flex items-start gap-2 text-xs text-muted-foreground">
                 <Info className="h-3.5 w-3.5 mt-0.5 text-primary" />
                 <p>
-                  As embalagens associadas a uma <strong>caixa</strong> podem
-                  ser rastreadas fisicamente por QR Code.  
-                  Se essa embalagem for movida para outra caixa, o vínculo deve
-                  ser atualizado.
+                  Embalagens vinculadas a uma <strong>caixa</strong> podem ser
+                  rastreadas por QR Code. Ao mover de caixa/localização, lembre
+                  de atualizar o vínculo.
                 </p>
               </div>
             </CardContent>
