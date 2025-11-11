@@ -58,48 +58,48 @@ export const appRouter = router({
     }),
 
     // Login de desenvolvimento (apenas para ambiente local)
-    devLogin: publicProcedure.mutation(async ({ ctx }) => {
-      if (process.env.NODE_ENV !== "development") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            "Login de desenvolvimento disponível apenas em ambiente de desenvolvimento",
+devLogin: publicProcedure.mutation(async ({ ctx }) => {
+  const isDev = process.env.NODE_ENV === "development";
+  const allowDevInProd = process.env.ALLOW_DEV_LOGIN === "true";
+
+  if (!isDev && !allowDevInProd) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "Login de desenvolvimento está desabilitado neste ambiente.",
+    });
+  }
+
+  await db.upsertUser({
+    openId: "dev-admin-local",
+    name: "Admin Desenvolvimento",
+    email: "admin@dev.local",
+    loginMethod: "dev",
+    role: "super_admin",
+    lastSignedIn: new Date(),
+  });
+
+  const user = await db.getUserByOpenId("dev-admin-local");
+  if (!user) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Falha ao criar usuário de desenvolvimento",
         });
-      }
+  }
 
-      // Garante usuário super admin local
-      await db.upsertUser({
-        openId: "dev-admin-local",
-        name: "Admin Desenvolvimento",
-        email: "admin@dev.local",
-        loginMethod: "dev",
-        role: "super_admin",
-        lastSignedIn: new Date(),
-      });
+  const sessionToken = await sdk.createSessionToken(user.openId, {
+    name: user.name || "Admin Desenvolvimento",
+    expiresInMs: ONE_YEAR_MS,
+  });
 
-      const user = await db.getUserByOpenId("dev-admin-local");
-      if (!user) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Falha ao criar usuário de desenvolvimento",
-        });
-      }
+  const cookieOptions = getSessionCookieOptions(ctx.req);
+  ctx.res.cookie(COOKIE_NAME, sessionToken, {
+    ...cookieOptions,
+    maxAge: ONE_YEAR_MS,
+  });
 
-      // Cria token de sessão no formato esperado pelo sdk.verifySession:
-      // { openId, appId: ENV.appId, name }
-      const sessionToken = await sdk.createSessionToken(user.openId, {
-        name: user.name || "Admin Desenvolvimento",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.cookie(COOKIE_NAME, sessionToken, {
-        ...cookieOptions,
-        maxAge: ONE_YEAR_MS,
-      });
-
-      return { success: true, user };
-    }),
+  return { success: true, user };
+}),
   }),
 
   // Routers de embalagens
