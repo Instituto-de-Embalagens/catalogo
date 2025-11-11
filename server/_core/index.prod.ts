@@ -7,6 +7,11 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { appRouter } from "../routers";   // 👈 este é o arquivo que você colou
 import { createContext } from "./context"; // 👈 contexto TRPC (já deve existir aí)
 
+console.log('=== STARTUP DEBUG ===');
+console.log('RAW APP_SECRET exists:', !!process.env.APP_SECRET);
+console.log('RAW APP_SECRET length:', process.env.APP_SECRET?.length || 0);
+console.log('====================');
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
