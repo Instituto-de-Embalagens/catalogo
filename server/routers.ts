@@ -59,6 +59,14 @@ export const appRouter = router({
 
     // Login de desenvolvimento (com flag para produção)
     devLogin: publicProcedure.mutation(async ({ ctx }) => {
+      // Debug inicial para garantir que o handler está lendo o ENV certo
+      console.log("[auth.devLogin] NODE_ENV:", ENV.nodeEnv);
+      console.log("[auth.devLogin] allowDevLogin:", ENV.allowDevLogin);
+      console.log(
+        "[auth.devLogin] APP_SECRET length:",
+        ENV.appSecret ? ENV.appSecret.length : 0
+      );
+
       const isDevEnv = ENV.nodeEnv === "development";
 
       // Só permite em:
@@ -72,9 +80,11 @@ export const appRouter = router({
         });
       }
 
-      // Se for gerar sessão, precisamos de APP_SECRET configurado
-      if (!ENV.appSecret) {
-        console.error("[auth.devLogin] APP_SECRET vazio/ausente");
+      // Validação forte do APP_SECRET
+      if (!ENV.appSecret || ENV.appSecret.length === 0) {
+        console.error(
+          "[auth.devLogin] APP_SECRET vazio/ausente dentro da mutation"
+        );
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
@@ -94,25 +104,60 @@ export const appRouter = router({
 
       const user = await db.getUserByOpenId("dev-admin-local");
       if (!user) {
+        console.error(
+          "[auth.devLogin] Falha ao recuperar usuário dev-admin-local após upsert"
+        );
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Falha ao criar usuário de desenvolvimento",
         });
       }
 
-      // Cria token de sessão no formato esperado pelo sdk.verifySession
-      const sessionToken = await sdk.createSessionToken(user.openId, {
-        name: user.name || "Admin Desenvolvimento",
-        expiresInMs: ONE_YEAR_MS,
-      });
+      console.log(
+        "[auth.devLogin] Gerando sessão para:",
+        user.email,
+        "openId:",
+        user.openId
+      );
 
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.cookie(COOKIE_NAME, sessionToken, {
-        ...cookieOptions,
-        maxAge: ONE_YEAR_MS,
-      });
+      try {
+        // Cria token de sessão no formato esperado pelo sdk.verifySession
+        const sessionToken = await sdk.createSessionToken(user.openId, {
+          name: user.name || "Admin Desenvolvimento",
+          expiresInMs: ONE_YEAR_MS,
+        });
 
-      return { success: true, user };
+        if (!sessionToken || sessionToken.length === 0) {
+          console.error(
+            "[auth.devLogin] sdk.createSessionToken retornou token vazio"
+          );
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Falha ao gerar token de sessão (token vazio).",
+          });
+        }
+
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, sessionToken, {
+          ...cookieOptions,
+          maxAge: ONE_YEAR_MS,
+        });
+
+        console.log("[auth.devLogin] Sessão criada com sucesso");
+        return { success: true, user };
+      } catch (err: any) {
+        console.error(
+          "[auth.devLogin] Erro ao criar sessão via sdk.createSessionToken:",
+          err?.message || err
+        );
+        console.error(err?.stack || "");
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            err?.message ||
+            "Falha ao gerar token de sessão (erro interno no SDK).",
+        });
+      }
     }),
   }),
 

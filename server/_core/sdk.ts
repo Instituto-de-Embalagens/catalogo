@@ -155,9 +155,17 @@ class SDKServer {
   }
 
   private getSessionSecret() {
-    const secret = ENV.cookieSecret;
+    const secret = ENV.cookieSecret || ENV.appSecret;
+
+    if (!secret || secret.length === 0) {
+      throw new Error(
+        "[SDK] Session secret está vazio. Configure COOKIE_SECRET ou APP_SECRET."
+      );
+    }
+
     return new TextEncoder().encode(secret);
   }
+
 
   /**
    * Create a session token for a Manus user openId
