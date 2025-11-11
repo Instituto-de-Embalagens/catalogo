@@ -6,7 +6,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "./db";
 import { ENV } from "./_core/env";
-import { sdk } from "./_core/sdk"; // 👈 IMPORTANTE: usar o SDK oficial
+import { sdk } from "./_core/sdk";
 
 // Middleware para Super Admin
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -57,52 +57,66 @@ export const appRouter = router({
       return { success: true } as const;
     }),
 
-    // Login de desenvolvimento (apenas para ambiente local)
-devLogin: publicProcedure.mutation(async ({ ctx }) => {
-  const isDev = process.env.NODE_ENV === "development";
-  const allowDevInProd = process.env.ALLOW_DEV_LOGIN === "true";
+    // Login de desenvolvimento (com flag para produção)
+    devLogin: publicProcedure.mutation(async ({ ctx }) => {
+      const isDevEnv = ENV.nodeEnv === "development";
 
-  if (!isDev && !allowDevInProd) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message:
-        "Login de desenvolvimento está desabilitado neste ambiente.",
-    });
-  }
-
-  await db.upsertUser({
-    openId: "dev-admin-local",
-    name: "Admin Desenvolvimento",
-    email: "admin@dev.local",
-    loginMethod: "dev",
-    role: "super_admin",
-    lastSignedIn: new Date(),
-  });
-
-  const user = await db.getUserByOpenId("dev-admin-local");
-  if (!user) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Falha ao criar usuário de desenvolvimento",
+      // Só permite em:
+      // - NODE_ENV=development
+      // - ou produção COM ALLOW_DEV_LOGIN habilitado
+      if (!isDevEnv && !ENV.allowDevLogin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Login de desenvolvimento disponível apenas em ambiente de desenvolvimento",
         });
-  }
+      }
 
-  const sessionToken = await sdk.createSessionToken(user.openId, {
-    name: user.name || "Admin Desenvolvimento",
-    expiresInMs: ONE_YEAR_MS,
-  });
+      // Se for gerar sessão, precisamos de APP_SECRET configurado
+      if (!ENV.appSecret) {
+        console.error("[auth.devLogin] APP_SECRET vazio/ausente");
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            "Configuração de autenticação inválida (APP_SECRET ausente).",
+        });
+      }
 
-  const cookieOptions = getSessionCookieOptions(ctx.req);
-  ctx.res.cookie(COOKIE_NAME, sessionToken, {
-    ...cookieOptions,
-    maxAge: ONE_YEAR_MS,
-  });
+      // Garante usuário super admin local
+      await db.upsertUser({
+        openId: "dev-admin-local",
+        name: "Admin Desenvolvimento",
+        email: "admin@dev.local",
+        loginMethod: "dev",
+        role: "super_admin",
+        lastSignedIn: new Date(),
+      });
 
-  return { success: true, user };
-}),
+      const user = await db.getUserByOpenId("dev-admin-local");
+      if (!user) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Falha ao criar usuário de desenvolvimento",
+        });
+      }
+
+      // Cria token de sessão no formato esperado pelo sdk.verifySession
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: user.name || "Admin Desenvolvimento",
+        expiresInMs: ONE_YEAR_MS,
+      });
+
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: ONE_YEAR_MS,
+      });
+
+      return { success: true, user };
+    }),
   }),
 
-  // Routers de embalagens
+  // ===== Embalagens =====
   embalagens: router({
     list: publicProcedure
       .input(
@@ -117,9 +131,7 @@ devLogin: publicProcedure.mutation(async ({ ctx }) => {
           })
           .optional()
       )
-      .query(async ({ input }) => {
-        return db.getAllEmbalagens(input);
-      }),
+      .query(async ({ input }) => db.getAllEmbalagens(input)),
 
     getById: publicProcedure
       .input(z.object({ id: z.number() }))
@@ -192,9 +204,9 @@ devLogin: publicProcedure.mutation(async ({ ctx }) => {
           motivo: z.string().optional(),
         })
       )
-      .mutation(async ({ input, ctx }) => {
-        return db.softDeleteEmbalagem(input.id, ctx.user.id, input.motivo);
-      }),
+      .mutation(async ({ input, ctx }) =>
+        db.softDeleteEmbalagem(input.id, ctx.user.id, input.motivo)
+      ),
 
     recuperar: adminProcedure
       .input(z.object({ id: z.number() }))
@@ -207,7 +219,7 @@ devLogin: publicProcedure.mutation(async ({ ctx }) => {
       ),
   }),
 
-  // Routers de fotos
+  // ===== Fotos =====
   fotos: router({
     add: gerenteProcedure
       .input(
@@ -230,7 +242,7 @@ devLogin: publicProcedure.mutation(async ({ ctx }) => {
       .mutation(async ({ input }) => db.deleteFotoEmbalagem(input.id)),
   }),
 
-  // Routers de localizações
+  // ===== Localizações =====
   localizacoes: router({
     list: publicProcedure.query(() => db.getAllLocalizacoes()),
 
@@ -304,16 +316,13 @@ devLogin: publicProcedure.mutation(async ({ ctx }) => {
       ),
   }),
 
+  // ===== Usuários =====
   usuarios: router({
-    list: adminProcedure.query(async () => {
-      return db.getAllUsers();
-    }),
+    list: adminProcedure.query(async () => db.getAllUsers()),
 
     getById: adminProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return db.getUserById(input.id);
-      }),
+      .query(async ({ input }) => db.getUserById(input.id)),
 
     create: adminProcedure
       .input(
@@ -325,7 +334,7 @@ devLogin: publicProcedure.mutation(async ({ ctx }) => {
       )
       .mutation(async ({ input }) => {
         await db.upsertUser({
-          openId: input.email, // simples e único para esse contexto
+          openId: input.email,
           name: input.name,
           email: input.email,
           role: input.role,
@@ -355,19 +364,18 @@ devLogin: publicProcedure.mutation(async ({ ctx }) => {
             .optional(),
         })
       )
-      .mutation(async ({ input }) => {
-        return db.updateUser(input.id, input);
-      }),
+      .mutation(async ({ input }) =>
+        db.updateUser(input.id, input)
+      ),
 
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ input }) => {
-        return db.deleteUser(input.id);
-      }),
+      .mutation(async ({ input }) =>
+        db.deleteUser(input.id)
+      ),
   }),
 
-
-  // Routers de equipes
+  // ===== Equipes =====
   equipes: router({
     list: publicProcedure.query(() => db.getAllEquipes()),
 
